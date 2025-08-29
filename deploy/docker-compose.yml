@@ -1,0 +1,59 @@
+version: "3.9"
+services:
+  frontend:
+    build: ./frontend
+    env_file: ./deploy/env/frontend.env
+    depends_on: [api]
+    networks: [net_front]
+
+  api:
+    build: ./api-gateway
+    env_file: ./deploy/env/api.env
+    depends_on: [postgres_app, redis]
+    networks: [net_front, net_core]
+
+  ingest:
+    build: ./ingest-api
+    env_file: ./deploy/env/ingest.env
+    depends_on: [postgres_app]
+    networks: [net_core]
+
+  scheduler:
+    build: ./api-gateway
+    command: ["python","scheduler.py"]
+    env_file: ./deploy/env/api.env
+    depends_on: [redis]
+    networks: [net_core]
+
+  worker_nmap:
+    build: ./workers/nmap
+    env_file: ./deploy/env/worker_nmap.env
+    depends_on: [redis, ingest]
+    networks: [net_scan, net_core]
+
+  # worker_nikto / worker_ssl / worker_openvas pueden agregarse luego
+
+  redis:
+    image: redis:7
+    networks: [net_core, net_scan]
+
+  postgres_app:
+    image: postgres:16
+    env_file: ./deploy/env/postgres_app.env
+    volumes: [appdata:/var/lib/postgresql/data]
+    networks: [net_core]
+
+  postgres_gvm:
+    image: postgres:16
+    env_file: ./deploy/env/postgres_gvm.env
+    volumes: [gvmdata:/var/lib/postgresql/data]
+    networks: [net_scan]
+
+networks:
+  net_front: {}
+  net_core: {}
+  net_scan: {}
+
+volumes:
+  appdata: {}
+  gvmdata: {}
